@@ -1,0 +1,472 @@
+<!DOCTYPE html>
+<html lang="es"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Atlas político 3D: mapa, exploración y test</title>
+<style>
+
+:root{--bg:#eef1f4;--panel:#fff;--ink:#14202b;--mut:#566574;--line:#c3ccd5;--box:#8a98a6;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#0e1620;--panel:#17222e;--ink:#e6edf3;--mut:#93a4b4;--line:#2c3a48;--box:#60768a;color-scheme:dark}}
+:root[data-theme="dark"]{--bg:#0e1620;--panel:#17222e;--ink:#e6edf3;--mut:#93a4b4;--line:#2c3a48;--box:#60768a;color-scheme:dark}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.5 system-ui,-apple-system,"Segoe UI",sans-serif}
+header{padding:20px 20px 4px;max-width:1200px;margin:auto}
+h1{font:600 clamp(24px,4vw,36px)/1.15 Georgia,"Iowan Old Style",serif;margin:0 0 6px}
+header p{margin:0;color:var(--mut);max-width:70ch}
+.app{display:grid;grid-template-columns:minmax(0,1fr) 340px;gap:16px;max-width:1200px;margin:auto;padding:16px 20px 28px}
+@media(max-width:900px){.app{grid-template-columns:1fr}}
+.stage{background:var(--panel);border:1px solid var(--line);border-radius:10px;position:relative;height:min(72vh,640px);min-height:380px}
+canvas{width:100%;height:100%;display:block;touch-action:none;cursor:grab}
+.reset{position:absolute;right:10px;top:10px;background:var(--bg);color:var(--ink);border:1px solid var(--line);border-radius:6px;padding:6px 10px;font:inherit;font-size:13px;cursor:pointer}
+.side{display:flex;flex-direction:column;gap:14px}
+.box{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:14px}
+.box h2{font:600 15px/1.3 system-ui,sans-serif;margin:0 0 8px}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chip{display:flex;align-items:center;gap:6px;border:1px solid var(--line);background:var(--bg);color:var(--ink);border-radius:99px;padding:4px 10px;font:inherit;font-size:13px;cursor:pointer}
+.chip[aria-pressed="false"]{opacity:.45}
+.chip i{width:10px;height:10px;border-radius:50%;display:inline-block}
+.chip:focus-visible,.reset:focus-visible{outline:2px solid var(--ink);outline-offset:2px}
+#info h3{margin:0 0 2px;font:600 18px/1.25 Georgia,serif}
+#info .fam{color:var(--mut);font-size:13px;margin:0 0 8px}
+.ax{display:grid;grid-template-columns:90px 1fr;gap:4px 8px;font-size:13px;margin:10px 0 0;align-items:center}
+.bar{height:6px;background:var(--line);border-radius:3px;position:relative}
+.bar b{position:absolute;top:-3px;width:12px;height:12px;border-radius:50%;background:var(--ink);transform:translateX(-50%)}
+.note{font-size:12.5px;color:var(--mut)}
+.ej{margin:10px 0 0;font-size:14px;padding:8px 10px;border-left:3px solid var(--mut);background:var(--bg)}
+
+:root{--acc:#1f6f8b;--accbg:#e1eff4}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--acc:#5fb7d4;--accbg:#1d3342}}
+:root[data-theme="dark"]{--acc:#5fb7d4;--accbg:#1d3342}
+[hidden]{display:none!important}
+.tabs{display:flex;gap:6px;max-width:1200px;margin:12px auto 0;padding:0 20px;flex-wrap:wrap}
+.tab,.o,.btn,.nb,select{font:inherit;color:var(--ink);background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:9px 13px;cursor:pointer}
+.tab[aria-selected="true"],.o[aria-pressed="true"]{background:var(--accbg);border-color:var(--acc)}
+.tab:focus-visible,.o:focus-visible,.btn:focus-visible,.nb:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid var(--acc);outline-offset:2px}
+select{width:100%;background:var(--bg);padding:7px}
+.o,.btn,.nb{background:var(--bg);text-align:left}
+.nb{display:flex;flex-direction:column;width:100%;margin-top:6px;padding:7px 10px}
+.nb span,.mut{color:var(--mut);font-size:13px;font-weight:400}
+.sl{margin:10px 0}.sl .lab{display:flex;justify-content:space-between;font-size:12.5px;color:var(--mut)}
+.sl .lab b{color:var(--ink)}input[type=range]{width:100%;accent-color:var(--acc)}
+.tcard{max-width:660px;margin:16px auto;padding:0 20px 36px}
+.prog{height:6px;background:var(--line);border-radius:3px;margin-bottom:6px;overflow:hidden}
+.prog i{display:block;height:100%;background:var(--acc);transition:width .25s}
+.cnt{font-size:13px;color:var(--mut);margin:0 0 12px}
+.q{font:500 20px/1.35 Georgia,serif;margin:0 0 16px}
+.opts{display:grid;gap:8px}.nav{margin-top:14px;display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap}
+.tx{margin:14px 0}.tx .t{font-weight:600;font-size:14px}.tx .l{display:flex;justify-content:space-between;font-size:13px;color:var(--mut)}
+.tx .bar{margin:8px 0 4px}.tx .bar b{background:var(--acc)}
+.band{position:absolute;top:-1px;height:8px;border-radius:4px;background:var(--acc);opacity:.28}
+.r{border-top:1px solid var(--line);padding:10px 0}.r h3{margin:0;font:600 18px/1.3 Georgia,serif}.r p{margin:2px 0 0;color:var(--mut);font-size:14.5px}
+.cx{font-size:13.5px;border-left:3px solid var(--acc);padding:4px 10px;margin:8px 0;background:var(--bg)}
+#info .btn{margin-top:10px;width:100%;text-align:center}
+.gg{display:grid;grid-template-columns:1fr 1fr;gap:22px}@media(max-width:760px){.gg{grid-template-columns:1fr}}
+.dots{display:grid;grid-template-columns:repeat(10,1fr);gap:5px;margin:4px 0 8px}.dots i{aspect-ratio:1;border-radius:50%;display:block}
+.ib{display:grid;grid-template-columns:92px 1fr 28px;gap:8px;align-items:center;font-size:13px;margin:5px 0}.ib .bar{height:8px;margin:0}.fill{position:absolute;left:0;top:0;height:100%;border-radius:4px;background:var(--acc)}
+:root{--bg:#f1f4f8;--panel:#fff;--ink:#0f1c2e;--mut:#586779;--line:#d6dde6;--acc:#0b6e8f;--accbg:#e2f0f5;--accfg:#fff;--hero:#10243c;--sh:0 1px 2px rgba(15,28,46,.06),0 8px 22px rgba(15,28,46,.07)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#0a121b;--panel:#121d29;--ink:#e8eef4;--mut:#93a5b6;--line:#243445;--acc:#5cb8d6;--accbg:#173243;--accfg:#08202b;--hero:#0d1a28;--sh:none}}
+:root[data-theme="dark"]{--bg:#0a121b;--panel:#121d29;--ink:#e8eef4;--mut:#93a5b6;--line:#243445;--acc:#5cb8d6;--accbg:#173243;--accfg:#08202b;--hero:#0d1a28;--sh:none}
+body{font:16px/1.55 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+header{max-width:none;margin:0;padding:34px 20px 0;background:var(--hero);color:#fff}
+.hero{max-width:1200px;margin:auto}
+header h1{font:600 clamp(28px,5vw,44px)/1.08 Georgia,"Iowan Old Style",serif;margin:0 0 10px;letter-spacing:-.01em}
+header p{color:#c5d3e2;max-width:66ch;margin:0 0 22px}
+nav.tabs{max-width:none;margin:0;padding:0;gap:2px;background:none}
+nav.tabs .tab{background:none;border:0;border-bottom:3px solid transparent;border-radius:0;color:#c5d3e2;font-weight:600;padding:12px 16px}
+nav.tabs .tab:hover{color:#fff}
+nav.tabs .tab[aria-selected="true"]{color:#fff;border-bottom-color:#5cb8d6;background:none}
+.box,.stage{border-radius:14px;box-shadow:var(--sh)}.box{padding:18px}
+.btn.pri{background:var(--acc);color:var(--accfg);border-color:var(--acc);font-weight:600;text-align:center}
+.guide{grid-column:1/-1;display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+@media(max-width:760px){.guide{grid-template-columns:1fr}}
+.axc{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:12px 14px;box-shadow:var(--sh)}
+.axc b{font:600 16px Georgia,serif;display:block}.axc span{font-size:13.5px;color:var(--mut)}
+.mini{display:flex;align-items:center;gap:8px;margin-top:8px;font-size:12px;color:var(--mut)}.mini i{flex:1;height:4px;border-radius:2px;background:var(--line)}
+.how{margin:10px 0;padding-left:18px;font-size:14.5px}.fig{font-size:13.5px;color:var(--mut);margin:6px 0 0}
+.share{margin-top:16px}.share textarea{width:100%;box-sizing:border-box;font:inherit;font-size:14px;background:var(--bg);color:var(--ink);border:1px solid var(--line);border-radius:8px;padding:10px;margin-top:10px}
+#tip{position:fixed;z-index:50;width:260px;background:var(--panel);color:var(--ink);border:1px solid var(--line);border-radius:10px;padding:10px 12px;font-size:13.5px;box-shadow:0 10px 30px rgba(0,0,0,.2);pointer-events:none}
+#tip .th{font:italic 15px/1.4 Georgia,serif;margin:6px 0 4px}#tip .tr{margin:4px 0 0;color:var(--mut)}
+.dotc{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:6px}
+.crowd{display:grid;grid-template-columns:repeat(10,1fr);gap:4px;margin:2px 0 8px}
+.pp{background:none;border:0;padding:2px;cursor:pointer;border-radius:8px}.pp svg{display:block;width:100%;height:auto}
+.pp:hover,.pp:focus-visible{background:var(--accbg);outline:2px solid var(--acc)}
+.meters{display:flex;gap:22px;margin:6px 0 10px}.meters b{display:block;font:600 26px Georgia,serif}.meters span{font-size:12.5px;color:var(--mut)}
+.cc{border-left-color:#c98a10}
+</style></head><body>
+<header><div class="hero"><h1>Atlas político en 3D</h1><p>Un mapa interactivo para entender cómo se organizan las ideologías en tres dimensiones, descubrir dónde caes tú y comprobar, gobernando un pueblo polarizado, cómo las decisiones se encadenan.</p><nav class="tabs" aria-label="Secciones"><button class="tab" data-t="mapa" aria-selected="true">Mapa y exploración</button><button class="tab" data-t="test" aria-selected="false">Test político</button><button class="tab" data-t="juego" aria-selected="false">Juego: gobierna un pueblo</button></nav></div></header>
+<section id="mapa" class="app">
+<div class="guide"><div class="axc"><b>Eje económico</b><span>¿Quién decide sobre la riqueza y la producción: la comunidad o el mercado?</span><div class="mini"><em>Planificación</em><i></i><em>Mercado</em></div></div><div class="axc"><b>Eje social</b><span>¿Cuánto pesan la tradición y las costumbres frente al cambio cultural?</span><div class="mini"><em>Progresista</em><i></i><em>Tradicional</em></div></div><div class="axc"><b>Eje del poder</b><span>¿Cuánta autoridad concentra el Estado sobre la vida de las personas?</span><div class="mini"><em>Sin Estado</em><i></i><em>Estado total</em></div></div></div>
+<div class="stage"><canvas id="c" aria-label="Gráfico 3D de ideologías"></canvas><button class="reset" id="rs">Reiniciar vista</button></div>
+<div class="side">
+<div class="box" id="info"><h3>Elige una ideología</h3><p class="fam">Toca cualquier punto del gráfico.</p><p class="note" style="margin:0">Los puntos huecos marcan zonas del espacio casi nunca ocupadas. Los puntos con anillo tienen un ejemplo histórico; acerca la vista para ver todas las etiquetas.</p></div>
+<div class="box" id="exp"><h2>Explorar con deslizadores</h2><label class="mut" for="st">Punto de partida</label><select id="st"></select><div id="sls"></div><div id="nr"></div><button class="btn" id="qc" style="margin-top:10px">Quitar cursor</button></div>
+<div class="box"><h2>Familias</h2><div class="chips" id="chips"></div></div>
+<div class="box note"><b>Los tres ejes.</b> Económico (horizontal): planificación colectiva ↔ mercado privado. Social (vertical): progresista arriba, tradicional abajo. Poder (profundidad): sin Estado ↔ Estado total. En barras y deslizadores, el extremo izquierdo agrupa los polos más asociados a la izquierda (planificación, progresismo, sin Estado) y el derecho los contrarios. Los colores indican la familia política; el cursor toma el color de la ideología más cercana. Combina el eje de Eysenck (1954), el diamante de Nolan (1971) y modelos tridimensionales de la ciencia política. Las posiciones son aproximadas y discutibles.</div>
+</div></section>
+<section id="test" hidden><div class="tcard">
+<p class="mut" style="margin:0 0 12px">24 afirmaciones, unos 3 minutos. Algunas afirmaciones se relacionan entre sí de forma poco evidente: sirven para comprobar tu coherencia y afinar el resultado. No hay respuestas correctas ni se da por hecho que una postura obligue a otra. Responde según lo que piensas hoy, no según lo que crees que es “correcto”.</p>
+<div class="box" id="tapp"></div>
+<p class="note">Es un test orientativo: 24 preguntas no recogen todos los matices. No se incluyen como resultado ideologías definidas por rasgos que el test no mide, como el nazismo, basado en el racismo.</p>
+</div></section>
+<section id="juego" hidden><div class="tcard" style="max-width:980px"><p class="mut" style="margin:0 0 12px">Presides un pueblo de 30 personas, muy distintas entre sí y bastante polarizadas, durante 10 años o más. Cada año enfrentas un problema y eliges una política. Tus decisiones mueven los indicadores, cambian el ánimo de la gente y condicionan lo que ocurre después: quien se siente ignorado se radicaliza y las medidas anteriores alteran los efectos de las siguientes. No hay una elección “correcta”.</p><div class="box" id="gapp"></div></div></section>
+<div id="tip" hidden></div>
+<script>
+
+const F={an:["Anarquismos","#2f9e6e"],co:["Comunismo y marxismo","#d64545"],so:["Socialismo y socialdemocracia","#e0689a"],li:["Liberalismos","#d9a21b"],cn:["Conservadurismos","#3b6fd4"],au:["Autoritarismos de derecha","#8a56d6"],ot:["Otras corrientes","#1f9aa8"],hy:["Huecos del espacio","#8a98a6"]};
+// [nombre, familia, económico, poder, social, descripción]
+const D=[
+["Anarcocomunismo","an",-9,-10,-7,"Sin Estado ni propiedad privada; comunas federadas y apoyo mutuo."],
+["Anarcosindicalismo","an",-8,-9,-5,"Sindicatos autogestionados como base de la sociedad."],
+["Mutualismo","an",-3,-7,-2,"Cooperativas, crédito mutuo y mercado sin capitalismo (Proudhon)."],
+["Anarquismo individualista","an",2,-10,-7,"Soberanía individual absoluta (Stirner, Tucker)."],
+["Anarcocapitalismo","an",10,-10,-3,"Todos los servicios, incluida la justicia, provistos por el mercado."],
+["Marxismo-leninismo","co",-9,8,2,"Partido único, economía planificada y Estado de vanguardia."],
+["Estalinismo y maoísmo","co",-10,10,4,"Planificación total y control estatal extremo de la vida privada."],
+["Comunismo de consejos","co",-8,-6,-4,"Poder obrero directo en consejos; crítica del partido único."],
+["Trotskismo","co",-8,3,-3,"Revolución permanente; planificación con democracia obrera."],
+["Socialismo democrático","so",-5,-2,-6,"Propiedad social ampliada por la vía parlamentaria."],
+["Socialdemocracia","so",-2,-1,-6,"Mercado con Estado de bienestar fuerte e impuestos progresivos."],
+["Ecosocialismo","so",-5,-3,-7,"Anticapitalismo con límites ecológicos."],
+["Populismo de izquierda","so",-5,3,-2,"El pueblo contra las élites; Estado redistribuidor y líder fuerte."],
+["Liberalismo clásico","li",6,-4,-4,"Derechos individuales, mercado y gobierno limitado (Locke, Smith)."],
+["Liberalismo social","li",0,-1,-7,"Libertades civiles más intervención para igualar oportunidades."],
+["Neoliberalismo","li",8,0,-2,"Desregulación, privatización y mercado como árbitro."],
+["Libertarismo minarquista","li",8,-6,-4,"Estado mínimo: seguridad, justicia y defensa (Nozick)."],
+["Georgismo","li",3,-3,-4,"Mercado libre con impuesto único a la renta del suelo."],
+["Conservadurismo liberal","cn",5,0,4,"Mercado y orden institucional con valores tradicionales."],
+["Conservadurismo tradicional","cn",2,2,7,"Continuidad, religión, familia y reforma gradual (Burke)."],
+["Democracia cristiana","cn",-1,0,4,"Economía social de mercado con base moral cristiana."],
+["Distributismo","cn",-2,-4,5,"Propiedad muy repartida; pequeños productores y gremios."],
+["Monarquía constitucional","cn",3,-1,3,"Jefe de Estado hereditario con poder limitado."],
+["Fascismo","au",1,10,8,"Nación como cuerpo único, partido y líder; corporativismo."],
+["Nazismo","au",1,10,10,"Fascismo racial, expansionismo y exterminio."],
+["Franquismo y nacionalcatolicismo","au",3,8,9,"Dictadura, orden jerárquico y religión de Estado."],
+["Monarquía absoluta","au",2,8,9,"Poder del soberano sin límites constitucionales."],
+["Teocracia","au",-1,9,10,"La ley religiosa es la ley del Estado."],
+["Dictadura de libre mercado","au",8,8,6,"Autoritarismo político con apertura económica radical."],
+["Nacionalpopulismo","ot",2,5,7,"Soberanía nacional, identidad y liderazgo fuerte; grado de autoritarismo variable."],
+["Tecnocracia","ot",1,6,-1,"Gobierno de expertos; decisiones por eficiencia."],
+["Capitalismo de Estado autoritario","ot",-1,8,3,"Partido único con mercado dirigido."],
+["Republicanismo cívico","ot",-1,-3,-3,"Libertad como no dominación; participación y virtud cívica."],
+["Comunitarismo","ot",-3,-3,5,"Comunidad y vínculos locales antes que el individuo abstracto."],
+["Anarcofeminismo","an",-7,-9,-9,"Combate a la vez el patriarcado, el Estado y el capital."],
+["Anarcoprimitivismo","an",-6,-10,0,"Rechaza la civilización industrial y la tecnología moderna."],
+["Zapatismo","an",-6,-7,-4,"Autonomía indígena, democracia de base y mandar obedeciendo."],
+["Confederalismo democrático","an",-6,-6,-7,"Asambleas locales federadas, igualdad de género y ecología (Öcalan, Bookchin)."],
+["Cooperativismo","an",-4,-4,-2,"Empresas propiedad de quienes trabajan en ellas."],
+["Eurocomunismo","co",-6,0,-5,"Comunismo con pluralismo y vía parlamentaria."],
+["Titoísmo","co",-6,3,-1,"Socialismo de autogestión obrera y no alineamiento."],
+["Socialismo del siglo XXI","so",-5,4,-1,"Redistribución y nacionalizaciones con liderazgo presidencial fuerte."],
+["Tercera vía","li",3,-1,-5,"Mercado abierto con políticas sociales activas."],
+["Ordoliberalismo","li",3,1,-1,"Mercado libre con reglas firmes impuestas por el Estado."],
+["Keynesianismo","li",-1,0,-3,"El Estado estabiliza el ciclo económico con gasto público."],
+["Peronismo","ot",-2,4,2,"Nacionalismo económico, sindicatos y líder carismático."],
+["Kemalismo","ot",0,7,-3,"Estado laico, nacionalista y modernizador."],
+["Nasserismo","ot",-5,6,-1,"Panarabismo, nacionalizaciones y partido único."],
+["Gandhismo","ot",-2,-6,0,"No violencia y autosuficiencia local."],
+["Ecologismo político","ot",-2,-2,-8,"La sostenibilidad como principio rector de la política."],
+["Federalismo","ot",1,-2,-4,"Poder repartido entre niveles de gobierno superpuestos."],
+["Jacobinismo","ot",-2,8,-3,"República centralizada, igualitarismo y virtud cívica."],
+["Democracia directa","ot",-1,-5,-4,"Los ciudadanos deciden sin intermediarios."],
+["Bonapartismo","au",2,7,3,"Poder personal plebiscitario que promete orden y progreso."],
+["Corporativismo católico","au",1,8,8,"Estado autoritario con gremios obligatorios y moral católica."],
+["Dictadura militar","au",3,9,5,"Gobierno de las fuerzas armadas con libertades suspendidas."],
+["Hueco: control total y mercado total","hy",10,10,-8,"Un Estado omnipotente que a la vez deja todo al mercado: sin ejemplos."],
+["Hueco: planificación total y progresismo máximo","hy",-10,10,-10,"Control absoluto con libertad social plena: se contradice a sí mismo."],
+["Hueco: mercado puro, sin Estado y ultratradicional","hy",10,-10,10,"Casi sin experiencias históricas."]
+];
+const E={
+"Anarcocomunismo":"Ucrania de Majnó, la Makhnovshchina (1918–21).",
+"Anarcosindicalismo":"Cataluña y Aragón durante la Guerra Civil española (1936–39), con colectivizaciones impulsadas por la CNT.",
+"Mutualismo":"La Comuna de París (1871), con fuerte influencia de Proudhon.",
+"Marxismo-leninismo":"La Unión Soviética (1922–91) y Cuba (desde 1959).",
+"Estalinismo y maoísmo":"La URSS de Stalin (1924–53) y la China de Mao (1949–76), incluida la Revolución Cultural.",
+"Comunismo de consejos":"Los consejos obreros de la Revolución alemana (1918–19) y los sóviets de 1917.",
+"Trotskismo":"La Oposición de Izquierda y la IV Internacional (1938).",
+"Socialismo democrático":"El gobierno de la Unidad Popular de Allende en Chile (1970–73).",
+"Socialdemocracia":"Suecia: gobiernos socialdemócratas casi continuos entre 1932 y 1976 y Estado de bienestar nórdico.",
+"Liberalismo clásico":"El Reino Unido victoriano, con la abolición de las Corn Laws (1846).",
+"Liberalismo social":"Las reformas liberales británicas de 1906–14 (Lloyd George).",
+"Neoliberalismo":"El Reino Unido de Thatcher (1979–90) y los EE. UU. de Reagan (1981–89).",
+"Conservadurismo liberal":"Partidos como los Tories británicos y la CDU/CSU alemana en la posguerra.",
+"Conservadurismo tradicional":"La Europa de la Restauración tras 1815, con Metternich como figura central.",
+"Democracia cristiana":"La Democrazia Cristiana italiana, en el gobierno de 1946 a 1994.",
+"Monarquía constitucional":"El Reino Unido tras la Revolución Gloriosa (1688–89).",
+"Fascismo":"La Italia de Mussolini (1922–43).",
+"Franquismo y nacionalcatolicismo":"España bajo Franco (1939–75).",
+"Monarquía absoluta":"La Francia de Luis XIV (1643–1715).",
+"Teocracia":"Irán desde 1979 y los Estados Pontificios hasta 1870.",
+"Dictadura de libre mercado":"Chile bajo Pinochet (1973–90), con reformas diseñadas por los ‘Chicago Boys’.",
+"Tecnocracia":"Los gobiernos de técnicos en Italia (Monti, 2011–13; Draghi, 2021–22).",
+"Capitalismo de Estado autoritario":"China desde las reformas de 1978.",
+"Republicanismo cívico":"Las repúblicas italianas del Renacimiento, como Florencia.",
+"Zapatismo":"Municipios autónomos y Juntas de Buen Gobierno en Chiapas (desde 1994 y 2003).",
+"Confederalismo democrático":"La Administración Autónoma del Norte y Este de Siria, Rojava (desde 2012).",
+"Cooperativismo":"La Corporación Mondragón en el País Vasco (desde 1956).",
+"Anarcofeminismo":"Mujeres Libres, organización española (1936–39).",
+"Eurocomunismo":"El Partido Comunista Italiano de Berlinguer en los años 70.",
+"Titoísmo":"Yugoslavia (1945–91), con autogestión obrera y no alineamiento.",
+"Socialismo del siglo XXI":"Venezuela desde 1999 y Bolivia con el MAS desde 2006.",
+"Tercera vía":"Blair en el Reino Unido (1997–2007) y Clinton en EE. UU. (1993–2001).",
+"Ordoliberalismo":"Alemania Occidental con Erhard y el ‘milagro económico’ (1949–63).",
+"Keynesianismo":"El New Deal de F. D. Roosevelt en EE. UU. (1933–39).",
+"Peronismo":"Argentina bajo Perón (1946–55 y 1973–74).",
+"Kemalismo":"La Turquía de Atatürk (1923–38).",
+"Nasserismo":"El Egipto de Nasser (1954–70).",
+"Gandhismo":"El movimiento por la independencia de la India (hasta 1947).",
+"Ecologismo político":"Los Verdes alemanes en el gobierno federal (1998–2005).",
+"Federalismo":"Estados Unidos desde 1787 y la Unión Europea tras Maastricht (1992).",
+"Jacobinismo":"Francia durante el Comité de Salvación Pública (1793–94).",
+"Democracia directa":"La Atenas del siglo V a. C. y las Landsgemeinde de los cantones suizos.",
+"Bonapartismo":"El Segundo Imperio de Napoleón III en Francia (1852–70).",
+"Corporativismo católico":"El Estado Novo de Salazar en Portugal (1933–74).",
+"Dictadura militar":"Argentina bajo la última junta militar (1976–83)."
+};
+
+let cur=null;
+function near(c,n,L){return(L||D.filter(d=>d[1]!=="hy")).map(d=>({d,x:Math.hypot(d[2]-c.e,d[3]-c.p,d[4]-c.s)})).sort((a,b)=>a.x-b.x).slice(0,n)}
+function drawCursor(){if(!cur)return;const k=[cur.e/10,-cur.s/10,cur.p/10],c=Q(...k),ink=v("--ink"),nn=near(cur,3),col=F[nn[0].d[1]][1];
+nn.forEach(o=>{const q=Q(o.d[2]/10,-o.d[4]/10,o.d[3]/10);ctx.beginPath();ctx.moveTo(c[0],c[1]);ctx.lineTo(q[0],q[1]);ctx.strokeStyle=F[o.d[1]][1];ctx.globalAlpha=.85;ctx.lineWidth=1.8;ctx.setLineDash([4,4]);ctx.stroke();ctx.setLineDash([]);ctx.globalAlpha=1});
+line(k,[k[0],-1,k[2]],ink,1,[2,3]);
+ctx.beginPath();ctx.moveTo(c[0],c[1]-11);ctx.lineTo(c[0]+11,c[1]);ctx.lineTo(c[0],c[1]+11);ctx.lineTo(c[0]-11,c[1]);ctx.closePath();ctx.fillStyle=col;ctx.fill();ctx.strokeStyle=ink;ctx.lineWidth=2;ctx.stroke();
+txt(cur.label||"Cursor",[c[0]+15,c[1]-9],"left",true,ink,13)}
+const cv=document.getElementById("c"),ctx=cv.getContext("2d"),css=getComputedStyle(document.documentElement);
+const v=n=>css.getPropertyValue(n).trim();
+const rm=matchMedia("(prefers-reduced-motion: reduce)").matches;
+let W,H,dpr,yaw=.7,pitch=.32,zoom=1,sel=null,auto=!rm,on=new Set(Object.keys(F)),pts=[];
+function rs(){dpr=devicePixelRatio||1;const r=cv.getBoundingClientRect();W=r.width;H=r.height;cv.width=W*dpr;cv.height=H*dpr;ctx.setTransform(dpr,0,0,dpr,0,0)}
+function P(x,y,z){const a=Math.cos(yaw),b=Math.sin(yaw),x1=x*a+z*b,z1=-x*b+z*a,c=Math.cos(pitch),s=Math.sin(pitch),y1=y*c-z1*s,z2=y*s+z1*c,k=4/(4-z2),u=Math.min(W,H)*.27*zoom;return[W/2+x1*k*u,H/2-y1*k*u,z2,k]}
+// entrada: económico, social (vertical), poder (profundidad)
+const Q=(e,s,p)=>P(e,s,p);
+function line(a,b,col,w,dash){const p=Q(...a),q=Q(...b);ctx.beginPath();ctx.moveTo(p[0],p[1]);ctx.lineTo(q[0],q[1]);ctx.strokeStyle=col;ctx.lineWidth=w;ctx.setLineDash(dash||[]);ctx.stroke();ctx.setLineDash([])}
+function txt(t,p,al,bold,col,sz){ctx.font=(bold?"600 ":"400 ")+(sz||12)+"px system-ui,sans-serif";ctx.textAlign=al||"center";ctx.fillStyle=col||v("--mut");ctx.fillText(t,p[0],p[1])}
+function draw(){
+ctx.clearRect(0,0,W,H);
+const box=v("--box"),ink=v("--ink");
+const S=[-1,1];
+ctx.globalAlpha=.35;
+for(const a of S)for(const b of S){line([-1,a,b],[1,a,b],box,1);line([a,-1,b],[a,1,b],box,1);line([a,b,-1],[a,b,1],box,1)}
+ctx.globalAlpha=.9;
+line([-1,0,0],[1,0,0],box,1.5,[5,4]);line([0,-1,0],[0,1,0],box,1.5,[5,4]);line([0,0,-1],[0,0,1],box,1.5,[5,4]);
+ctx.globalAlpha=1;
+const L=(t,a,off)=>{const p=Q(...a);p[0]+=off[0];p[1]+=off[1];txt(t,p,off[2],true,ink,12.5)};
+L("Planificación colectiva",[-1,0,0],[-8,4,"right"]);L("Mercado privado",[1,0,0],[8,4,"left"]);
+L("Progresista",[0,1,0],[0,-10,"center"]);L("Tradicional",[0,-1,0],[0,18,"center"]);
+L("Estado total",[0,0,1],[8,4,"left"]);L("Sin Estado",[0,0,-1],[-8,4,"right"]);
+pts=D.filter(d=>on.has(d[1])).map(d=>({d,p:Q(d[2]/10,-d[4]/10,d[3]/10)})).sort((a,b)=>a.p[2]-b.p[2]);
+for(const o of pts){const [x,y,z,k]=o.p,d=o.d,col=F[d[1]][1],r=(d===sel?9:6)*k*Math.min(1.4,Math.max(.8,zoom));
+const al=.55+.45*(z+1.7)/3.4;o.r=r;
+ctx.globalAlpha=Math.min(1,al);ctx.beginPath();ctx.arc(x,y,r,0,7);
+if(d[1]==="hy"){ctx.setLineDash([3,3]);ctx.strokeStyle=col;ctx.lineWidth=1.6;ctx.stroke();ctx.setLineDash([])}else{ctx.fillStyle=col;ctx.fill();if(d===sel){ctx.strokeStyle=ink;ctx.lineWidth=2;ctx.stroke()}}
+if(E[d[0]]){ctx.beginPath();ctx.arc(x,y,r+3,0,7);ctx.strokeStyle=ink;ctx.lineWidth=1;ctx.stroke()}
+if(E[d[0]]||zoom>1.4||d===sel||d[1]==="hy")txt(d[0],[x+r+5,y+4],"left",d===sel,ink,d===sel?13:11);ctx.globalAlpha=1}
+drawCursor();if(auto)yaw+=.0035;requestAnimationFrame(draw)}
+function show(d){sel=d;const f=F[d[1]],pos=(n,a,b)=>`<div>${n}</div><div class="bar"><b style="left:${(n===0?50:0)}%"></b></div>`;
+const row=(lab,val,l,r)=>`<div>${lab}</div><div class="bar" title="${l} ↔ ${r}"><b style="left:${(val+10)*5}%"></b></div>`;
+document.getElementById("info").innerHTML=`<h3>${d[0]}</h3><p class="fam">${f[0]}</p><p style="margin:0">${d[5]}</p>${E[d[0]]?`<p class="ej"><b>Ejemplo histórico:</b> ${E[d[0]]}</p>`:""}<div class="ax">${row("Económico",d[2],"Planificación","Mercado")}${row("Social",d[4],"Progresista","Tradicional")}${row("Poder",d[3],"Sin Estado","Estado total")}</div><p class="note" style="margin:8px 0 0">En las barras, el extremo izquierdo es planificación, progresismo y sin Estado; el derecho, mercado, tradición y Estado total.</p>`}
+let drag=null;
+cv.addEventListener("pointerdown",e=>{cv.setPointerCapture(e.pointerId);drag={x:e.clientX,y:e.clientY,m:0};auto=false;cv.style.cursor="grabbing"});
+cv.addEventListener("pointermove",e=>{if(!drag)return;const dx=e.clientX-drag.x,dy=e.clientY-drag.y;drag.m+=Math.abs(dx)+Math.abs(dy);yaw+=dx*.008;pitch=Math.max(-1.4,Math.min(1.4,pitch+dy*.008));drag.x=e.clientX;drag.y=e.clientY});
+cv.addEventListener("pointerup",e=>{cv.style.cursor="grab";if(drag&&drag.m<6){const r=cv.getBoundingClientRect(),x=e.clientX-r.left,y=e.clientY-r.top;let best=null,bd=1e9;for(const o of pts){const dd=Math.hypot(o.p[0]-x,o.p[1]-y);if(dd<bd&&dd<o.r+14){bd=dd;best=o.d}}if(best)show(best)}drag=null});
+cv.addEventListener("wheel",e=>{e.preventDefault();zoom=Math.max(.6,Math.min(2.5,zoom*(e.deltaY<0?1.1:.91)))},{passive:false});
+document.getElementById("rs").onclick=()=>{yaw=.7;pitch=.32;zoom=1;auto=!rm};
+const ch=document.getElementById("chips");
+for(const k in F){const b=document.createElement("button");b.className="chip";b.setAttribute("aria-pressed","true");b.innerHTML=`<i style="background:${F[k][1]}"></i>${F[k][0]}`;b.onclick=()=>{on.has(k)?on.delete(k):on.add(k);b.setAttribute("aria-pressed",on.has(k))};ch.appendChild(b)}
+
+// ---- Exploración ----
+const st=document.getElementById("st"),SD=[["e","Económico","Planificación","Mercado"],["s","Social","Progresista","Tradicional"],["p","Poder","Sin Estado","Estado total"]];
+st.add(new Option("— elige un ejemplo —",""));D.filter(d=>d[1]!=="hy").forEach(d=>st.add(new Option(d[0],d[0])));
+document.getElementById("sls").innerHTML=SD.map(a=>`<div class="sl"><div class="lab"><span>${a[2]}</span><b>${a[1]}: <span id="v${a[0]}">0</span></b><span>${a[3]}</span></div><input type="range" id="s${a[0]}" min="-10" max="10" step="0.5" value="0" aria-label="${a[1]}"></div>`).join("");
+const sl={e:document.getElementById("se"),s:document.getElementById("ss"),p:document.getElementById("sp")};
+function renderNear(){for(const k in sl)document.getElementById("v"+k).textContent=(sl[k].value>0?"+":"")+sl[k].value;
+const nb=document.getElementById("nr");
+if(!cur){nb.innerHTML='<p class="note">Elige un punto de partida y mueve los deslizadores: verás qué ideologías quedan más cerca del cursor.</p>';return}
+nb.innerHTML='<h2 style="margin-top:12px">Más cercanas al cursor</h2>'+near(cur,5).map(o=>`<button class="nb" data-n="${o.d[0]}" style="border-left:4px solid ${F[o.d[1]][1]}"><b>${o.d[0]}</b><span>${F[o.d[1]][0]}</span></button>`).join("");
+nb.querySelectorAll(".nb").forEach(b=>b.onclick=()=>show(D.find(d=>d[0]===b.dataset.n)))}
+function setCur(e,s,p,label){cur={e,s,p,label};sl.e.value=e;sl.s.value=s;sl.p.value=p;renderNear()}
+function setStart(d){setCur(d[2],d[4],d[3],d[0]);st.value=d[0]}
+st.onchange=()=>{const d=D.find(x=>x[0]===st.value);if(d)setStart(d)};
+for(const k in sl)sl[k].oninput=()=>{cur={e:+sl.e.value,s:+sl.s.value,p:+sl.p.value,label:"Cursor"};st.value="";renderNear()};
+document.getElementById("qc").onclick=()=>{cur=null;st.value="";renderNear()};
+const _show=show;show=function(d){_show(d);if(d[1]==="hy")return;if(FIG[d[0]])document.getElementById("info").insertAdjacentHTML("beforeend",`<p class="fig">Figura histórica asociada: <b>${FIG[d[0]]}</b></p>`);const b=document.createElement("button");b.className="btn";b.textContent="Usar como punto de partida";b.onclick=()=>setStart(d);document.getElementById("info").appendChild(b)};
+renderNear();
+// ---- Pestañas ----
+function go(t){for(const id of["mapa","test","juego"])document.getElementById(id).hidden=id!==t;document.querySelectorAll(".tab").forEach(b=>b.setAttribute("aria-selected",b.dataset.t===t));if(t==="mapa")rs();window.scrollTo(0,0)}
+document.querySelectorAll(".tab").forEach(b=>b.onclick=()=>go(b.dataset.t));
+// ---- Test ----
+// [texto, eje, signo, par]. Cada par se formula en sentidos opuestos: estar de acuerdo con ambos es una contradicción.
+const TQ=[
+["Prefiero un sistema de salud financiado con impuestos que cubra a toda la población.","e",-1,"e1"],
+["Cuando varios proveedores privados compiten, los servicios suelen mejorar.","e",1,"e1"],
+["Si una empresa es esencial para el país, tiene sentido que su propiedad sea pública.","e",-1,"e2"],
+["Quien es dueño de una empresa suele saber mejor que nadie cómo gestionarla.","e",1,"e2"],
+["En general, las diferencias de riqueza entre unas familias y otras me parecen excesivas.","e",-1,"e3"],
+["La mayor parte de las diferencias de ingresos reflejan diferencias de esfuerzo o de talento.","e",1,"e3"],
+["Prefiero que las condiciones laborales básicas queden fijadas por ley y no por acuerdo entre las partes.","e",-1,"e4"],
+["Un mercado laboral con pocas reglas suele crear más empleo.","e",1,"e4"],
+["Las costumbres que han durado siglos suelen contener una sabiduría que conviene respetar.","s",1,"s1"],
+["Cuando una costumbre antigua choca con la igualdad entre personas, conviene cambiarla.","s",-1,"s1"],
+["Los valores religiosos ayudan a que una comunidad se mantenga unida.","s",1,"s2"],
+["Me parece natural que las leyes se redacten sin referencia a ninguna doctrina religiosa.","s",-1,"s2"],
+["El modelo de familia tradicional ofrece ventajas que otros modelos no ofrecen.","s",1,"s3"],
+["Me es indiferente que una pareja se case, conviva sin casarse o no tenga hijos.","s",-1,"s3"],
+["Compartir una misma cultura facilita la confianza entre vecinos.","s",1,"s4"],
+["Convivir con personas de orígenes diversos suele enriquecer a un barrio.","s",-1,"s4"],
+["Ante un problema nacional, una única autoridad central actúa con más coherencia que muchas autoridades locales.","p",1,"p1"],
+["Los vecinos de un lugar conocen mejor que un gobierno lejano lo que necesita su comunidad.","p",-1,"p1"],
+["En una emergencia grave, es comprensible que el gobierno restrinja temporalmente algunos derechos.","p",1,"p2"],
+["Los derechos fundamentales deberían tener las mismas garantías en tiempos normales y en tiempos de crisis.","p",-1,"p2"],
+["Sin instituciones estatales fuertes, es difícil que se respeten los acuerdos entre personas.","p",1,"p3"],
+["Las personas suelen resolver sus conflictos mejor entre ellas que a través de un Estado.","p",-1,"p3"],
+["Un liderazgo firme y reconocible hace que un país avance con más decisión.","p",1,"p4"],
+["Aunque se decida más despacio, repartir el poder entre varias instituciones suele dar mejores resultados.","p",-1,"p4"]];
+const OPT=["Totalmente en desacuerdo","En desacuerdo","Neutral o depende","De acuerdo","Totalmente de acuerdo"];
+const tapp=document.getElementById("tapp"),CAND=D.filter(d=>d[1]!=="hy"&&d[0]!=="Nazismo");
+let order,ti,ans;
+function startTest(){order=TQ.map((_,k)=>k).sort(()=>Math.random()-.5);ti=0;ans={};tRender()}
+function tRender(){ti<order.length?tAsk():tRes()}
+function tAsk(){const k=order[ti],q=TQ[k];
+tapp.innerHTML=`<div class="prog"><i style="width:${ti/order.length*100}%"></i></div><p class="cnt">Pregunta ${ti+1} de ${order.length}</p><p class="q">${q[0]}</p><div class="opts">${OPT.map((t,j)=>`<button class="o" aria-pressed="${ans[k]===j-2}" data-v="${j-2}">${t}</button>`).join("")}</div><div class="nav">${ti?'<button class="btn" id="tb">Atrás</button>':"<span></span>"}</div>`;
+tapp.querySelectorAll(".o").forEach(b=>b.onclick=()=>{ans[k]=+b.dataset.v;ti++;tRender()});
+const tb=document.getElementById("tb");if(tb)tb.onclick=()=>{ti--;tRender()}}
+function tRes(){
+const ax={e:[],s:[],p:[]},gp={e:[],s:[],p:[]},pr={},bad=[];
+TQ.forEach((q,k)=>{ax[q[1]].push(q[2]*ans[k]);(pr[q[3]]=pr[q[3]]||[]).push(k)});
+for(const id in pr){const[i,j]=pr[id],g=Math.abs(TQ[i][2]*ans[i]-TQ[j][2]*ans[j]);gp[TQ[i][1]].push(g);if(g>=3)bad.push([i,j])}
+const m=a=>a.reduce((x,y)=>x+y,0)/a.length,u={},inc={};
+for(const a in ax){u[a]=m(ax[a])*5;inc[a]=m(gp[a])/4}
+const lab=x=>x<.2?"alta":x<.45?"media":"baja";
+const bar=(a,t,l,r)=>{const hw=inc[a]*5,lo=Math.max(0,(u[a]-hw+10)*5),hi=Math.min(100,(u[a]+hw+10)*5);return`<div class="tx"><div class="t">${t} <span class="mut">· coherencia ${lab(inc[a])}</span></div><div class="bar"><span class="band" style="left:${lo}%;width:${hi-lo}%"></span><b style="left:${(u[a]+10)*5}%"></b></div><div class="l"><span>${l}</span><span>${r}</span></div></div>`};
+const top=near({e:u.e,s:u.s,p:u.p},3,CAND);
+tapp.innerHTML=`<div class="prog"><i style="width:100%"></i></div><h2 style="font:600 22px Georgia,serif;margin:10px 0 0">Tu posición</h2>${bar("e","Económico","Planificación colectiva","Mercado privado")}${bar("s","Social","Progresista","Tradicional")}${bar("p","Poder","Sin Estado","Estado total")}${interp(u)}<p class="note" style="margin:0">La banda clara indica la incertidumbre: se ensancha cuando tus respuestas se contradicen en ese eje.</p><h2 style="font:600 18px Georgia,serif;margin:18px 0 4px">Ideologías más cercanas</h2>${top.map((o,k)=>`<div class="r" style="border-left:4px solid ${F[o.d[1]][1]};padding-left:10px"><h3>${o.d[0]}</h3><p>${F[o.d[1]][0]}. ${o.d[5]}${E[o.d[0]]?" <b>Ejemplo:</b> "+E[o.d[0]]:""}</p>${FIG[o.d[0]]?`<p class="fig">Figura histórica asociada: <b>${FIG[o.d[0]]}</b></p>`:""}</div>`).join("")}${bad.length?`<h2 style="font:600 18px Georgia,serif;margin:18px 0 4px">Respuestas que chocan entre sí</h2><p class="note" style="margin:0 0 6px">Estas respuestas parecen ir en direcciones opuestas aunque traten temas distintos. No es un error: casi todo el mundo tiene tensiones internas y el modelo promedia ambas.</p>${bad.slice(0,4).map(([i,j])=>`<div class="cx">“${TQ[i][0]}” <b>→ ${OPT[ans[i]+2]}</b><br>“${TQ[j][0]}” <b>→ ${OPT[ans[j]+2]}</b></div>`).join("")}`:'<p class="note">No detectamos contradicciones fuertes en tus respuestas.</p>'}${shareBlock()}<div class="nav"><button class="btn" id="tm">Ver mi punto en el mapa</button><button class="btn" id="tb">Revisar respuestas</button><button class="btn" id="tr">Repetir el test</button></div>`;
+bindShare(shareText(top[0].d,u));document.getElementById("tm").onclick=()=>{setCur(+u.e.toFixed(1),+u.s.toFixed(1),+u.p.toFixed(1),"Tú");st.value="";go("mapa")};
+document.getElementById("tb").onclick=()=>{ti=order.length-1;tRender()};
+document.getElementById("tr").onclick=startTest}
+// ---- Datos comunes: figuras históricas, lectura de ejes y botón compartir ----
+const FIG={"Anarcocomunismo":"Piotr Kropotkin","Anarcosindicalismo":"Buenaventura Durruti","Mutualismo":"Pierre-Joseph Proudhon","Anarquismo individualista":"Max Stirner","Anarcocapitalismo":"Murray Rothbard","Marxismo-leninismo":"Vladimir Lenin","Estalinismo y maoísmo":"Mao Zedong","Comunismo de consejos":"Rosa Luxemburgo","Trotskismo":"León Trotski","Socialismo democrático":"Salvador Allende","Socialdemocracia":"Olof Palme","Ecosocialismo":"André Gorz","Populismo de izquierda":"Jorge Eliécer Gaitán","Liberalismo clásico":"Adam Smith","Liberalismo social":"John Stuart Mill","Neoliberalismo":"Margaret Thatcher","Libertarismo minarquista":"Robert Nozick","Georgismo":"Henry George","Conservadurismo liberal":"Benjamin Disraeli","Conservadurismo tradicional":"Edmund Burke","Democracia cristiana":"Alcide De Gasperi","Distributismo":"G. K. Chesterton","Monarquía constitucional":"la reina Victoria","Fascismo":"Benito Mussolini","Franquismo y nacionalcatolicismo":"Francisco Franco","Monarquía absoluta":"Luis XIV","Teocracia":"Ruhollah Jomeini","Dictadura de libre mercado":"Augusto Pinochet","Nacionalpopulismo":"Huey Long","Tecnocracia":"Jean Monnet","Capitalismo de Estado autoritario":"Deng Xiaoping","Republicanismo cívico":"Cicerón","Comunitarismo":"Alexis de Tocqueville","Anarcofeminismo":"Emma Goldman","Anarcoprimitivismo":"Henry David Thoreau","Zapatismo":"Emiliano Zapata","Confederalismo democrático":"Murray Bookchin","Cooperativismo":"Robert Owen","Eurocomunismo":"Enrico Berlinguer","Titoísmo":"Josip Broz Tito","Socialismo del siglo XXI":"Hugo Chávez","Tercera vía":"Tony Blair","Ordoliberalismo":"Ludwig Erhard","Keynesianismo":"John Maynard Keynes","Peronismo":"Juan Domingo Perón","Kemalismo":"Mustafa Kemal Atatürk","Nasserismo":"Gamal Abdel Nasser","Gandhismo":"Mahatma Gandhi","Ecologismo político":"Petra Kelly","Federalismo":"Alexander Hamilton","Jacobinismo":"Maximilien Robespierre","Democracia directa":"Pericles","Bonapartismo":"Napoleón III","Corporativismo católico":"António de Oliveira Salazar","Dictadura militar":"Jorge Rafael Videla"};
+const IT=(v,a,b)=>{const x=Math.abs(v);return x<2?`un equilibrio entre ${a} y ${b}`:`una inclinación ${x<5?"moderada":"fuerte"} hacia ${v<0?a:b}`};
+const interp=u=>`<ul class="how"><li><b>Economía:</b> ${IT(u.e,"la planificación colectiva","el mercado privado")}.</li><li><b>Sociedad:</b> ${IT(u.s,"el progresismo","la tradición")}.</li><li><b>Poder:</b> ${IT(u.p,"la descentralización","un Estado fuerte")}.</li></ul>`;
+const url=()=>/^https?:/.test(location.href)?"\n"+location.href.split("#")[0]:"";
+function shareText(d,u,x){const f=FIG[d[0]];return`Mi ideología se parece a «${d[0]}»${f?`, cuya figura histórica más afín es ${f}`:""}. En lo económico tengo ${IT(u.e,"la planificación colectiva","el mercado privado")}; en lo social, ${IT(u.s,"el progresismo","la tradición")}; y sobre el poder, ${IT(u.p,"la descentralización","un Estado fuerte")}.${x||""}${url()}`}
+const shareBlock=()=>'<div class="share"><button class="btn pri" id="sh">Compartir mi resultado</button><div id="shout" hidden></div></div>';
+function bindShare(txt){const b=document.getElementById("sh"),o=document.getElementById("shout");
+b.onclick=()=>{o.hidden=false;o.innerHTML=`<textarea readonly id="sht" rows="5" aria-label="Texto para compartir">${txt}</textarea><div class="nav"><button class="btn pri" id="shc">Copiar texto</button>${navigator.share?'<button class="btn" id="shs">Compartir…</button>':""}</div>`;
+const ta=document.getElementById("sht"),c=document.getElementById("shc");
+c.onclick=async()=>{let ok=false;try{await navigator.clipboard.writeText(txt);ok=true}catch(e){try{ta.select();ok=document.execCommand("copy")}catch(e2){}}c.textContent=ok?"¡Copiado!":"Selecciona el texto y cópialo"};
+const s=document.getElementById("shs");if(s)s.onclick=()=>navigator.share({text:txt}).catch(()=>{})}}
+// ---- Juego ----
+const IND=["Economía","Bienestar","Libertades","Convivencia","Entorno"];
+// arquetipos: [oficio, económico, social, poder, tolerancia, [conforme, indeciso, descontento]]
+const AR=[
+["Sindicalista",-8,-4,-3,12,["Por fin alguien escucha a quienes trabajamos.","Veremos si cumplen lo prometido.","Esto solo beneficia a los de arriba."]],
+["Empresaria",8,-2,-3,12,["Se puede crecer y emprender con este rumbo.","Ni bien ni mal: depende de los impuestos.","Así no se puede emprender."]],
+["Ingeniero libertario",9,-3,-9,11,["Menos Estado y más libertad: voy bien.","Ojalá se atrevieran a más.","Cada norma nueva es una carga más."]],
+["Párroco",0,9,3,11,["Se respeta lo que siempre nos ha unido.","Hay cosas que cuidar en el pueblo.","Se están perdiendo nuestros valores."]],
+["Agricultor",4,7,1,14,["Se acuerdan del campo y se nota.","Aguanto, como siempre.","Deciden en la ciudad y pagamos nosotros."]],
+["Policía jubilado",2,6,9,12,["Hay orden y se nota en la calle.","Falta mano firme.","Esto es un desorden."]],
+["Estudiante activista",-3,-9,-3,11,["Estamos cambiando el pueblo.","Se avanza, pero muy despacio.","Nos ignoran: saldremos a la calle."]],
+["Cooperativista",-7,-6,-9,12,["Organizándonos entre vecinos funciona.","Seguimos a nuestro ritmo.","Nos imponen cosas desde arriba."]],
+["Funcionaria",-5,0,7,15,["El Estado cumple su papel.","Se hace lo que se puede.","Se está desmantelando lo público."]],
+["Tendero",6,2,-1,16,["El negocio marcha y el barrio está tranquilo.","A ver cómo acaba el año.","Entre impuestos y líos no llego."]],
+["Maestra moderada",0,-1,0,24,["Se razona y se escucha: así sí.","No estoy ni contenta ni enfadada.","Todos gritan y nadie escucha."]],
+["Vecino pragmático",1,1,0,26,["Funciona, y eso es lo que importa.","Que se note la mejora y ya veremos.","Prometen mucho y cambian poco."]]];
+const NM=["Ana","Luis","Marta","Pedro","Lucía","Omar","Inés","Rafael","Carmen","Joel","Nuria","Hugo","Elena","Samir","Paula","Iván","Rosa","Tomás","Alba","Diego"];
+// carta: [título, contexto, [[política, [eco,bie,lib,coh,ent], [económico,social,poder], marca, [[marca previa, ajuste, nota]]]], [[marca previa, texto de contexto]]]
+const GC=[
+["Vivienda","Los alquileres han subido un 30 % en tres años y muchas familias jóvenes no encuentran casa.",[
+["Construir vivienda pública y limitar los alquileres",[-2,7,-1,3,-2],[-6,-2,4],"vp"],
+["Facilitar permisos y suelo para que construya el sector privado",[6,2,2,-1,-4],[7,0,-3],"vm"],
+["Dar ayudas directas a los hogares y que cada barrio decida cómo crecer",[1,4,1,1,-1],[-1,0,-7],"va"]]],
+["Epidemia","Un virus desconocido empieza a extenderse por el pueblo.",[
+["Confinamiento obligatorio y control de movimientos",[-7,3,-8,2,2],[-1,3,9],"conf",[["vp",[0,2,0,0,0],"el menor hacinamiento por la vivienda pública hizo más llevadero el confinamiento."]]],
+["Recomendaciones y apoyo económico; cada persona decide",[-2,-1,4,-2,0],[3,-2,-7],"libre",[["vm",[0,-2,0,-1,0],"sin red de vivienda pública, a muchas familias les costó aislarse."]]],
+["Plan sanitario coordinado entre hospitales y ayuntamientos",[-3,5,0,3,0],[-5,0,1],"sanidad"]],
+[["vp","Gracias a la vivienda pública hay menos hacinamiento."],["vm","Los barrios nuevos crecieron rápido, con servicios justos."]]],
+["Escuelas","Los resultados escolares han caído y las familias están preocupadas.",[
+["Programa único para todo el país, con más peso de la historia y las tradiciones",[0,1,-3,2,0],[0,7,6],"unico"],
+["Cheque escolar: cada familia elige centro público o privado",[4,1,3,-3,0],[7,1,-4],"cheque"],
+["Más docentes y escuelas abiertas a la comunidad, con proyecto propio",[-2,4,2,3,0],[-5,-5,-3],"abiertas",[["sanidad",[0,2,0,1,0],"la red sanitaria local colaboró con las escuelas abiertas."]]]],
+[["conf","Tras el confinamiento quedaron lagunas de aprendizaje."]]],
+["Sequía y energía","Una sequía golpea la cosecha y la electricidad depende del carbón.",[
+["Plan público de energías renovables",[1,2,0,1,8],[-6,-4,5],"renov"],
+["Impuesto a las emisiones y mercado de derechos para contaminar",[2,0,0,-2,6],[5,-3,2],"carbono"],
+["Mantener el carbón para proteger los empleos mineros",[3,1,0,1,-8],[0,5,0],"carb"]]],
+["Llegada de migrantes","Llegan 200 personas en busca de trabajo.",[
+["Cupos estrictos y control de fronteras",[-1,-1,-3,1,0],[1,8,7],"cupos"],
+["Acogida con programas de idioma y empleo",[3,2,3,-1,0],[-2,-7,2],"acog"],
+["Que empresas y gremios contraten a quien necesiten, sin cupos",[5,1,2,-3,0],[8,-1,-5],"contrata"]]],
+["La plaza digital","Circulan bulos y discursos de odio en las redes del pueblo.",[
+["Ley que obliga a retirar contenidos y multa a las plataformas",[-1,0,-6,4,0],[-1,0,8],"ley"],
+["No regular: que cada persona responda y decida qué leer",[1,0,4,-5,0],[4,-1,-9],"libre_red"],
+["Educación mediática en las escuelas y un consejo ciudadano de verificación",[-1,1,1,2,0],[-3,-3,-2],"edu_med"]]],
+["Automatización","Una fábrica automatizada va a eliminar 300 empleos.",[
+["Renta básica y recualificación pagadas por el Estado",[-2,6,1,2,0],[-7,-3,3],"rb",[["renov",[2,1,0,0,2],"la recualificación encontró salida en el sector renovable."]]],
+["Bajar impuestos a las empresas para atraer nuevas inversiones",[6,-2,0,-2,-2],[8,1,0],"rebaja",[["cupos",[-1,0,0,0,0],"escasea mano de obra y la nueva inversión se frena."]]],
+["Ayudar a los trabajadores a convertir la fábrica en cooperativa",[1,2,1,3,0],[-5,-1,-6],"coop"]],
+[["renov","El sector renovable busca trabajadores."],["carb","Las minas de carbón empiezan a dar pérdidas."]]],
+["Seguridad","Aumentan los robos en el barrio del puerto.",[
+["Más policía, cámaras y penas más duras",[-2,0,-5,-1,0],[1,5,9],"poli"],
+["Mediación comunitaria y patrullas vecinales",[0,1,2,3,0],[-2,-1,-8],"mediacion",[["acog",[0,0,0,2,0],"la mediación incluyó a la nueva comunidad migrante."]]],
+["Invertir en empleo y servicios sociales en el barrio",[-2,4,1,2,0],[-6,-3,2],"social"]],
+[["acog","Hay una comunidad migrante nueva en el barrio del puerto."]]],
+["Presupuesto","Faltan fondos para cubrir el gasto del año.",[
+["Subir impuestos a las rentas altas y al patrimonio",[-1,5,0,2,0],[-8,-1,3],"imp",[["acog",[1,1,0,0,0],"los recién llegados ya cotizan y amplían la base fiscal."]]],
+["Recortar gasto y privatizar los servicios que dan pérdidas",[4,-4,1,-2,0],[8,1,-2],"priv",[["carb",[-3,0,0,0,0],"cerrar o privatizar las minas deja desempleo."]]],
+["Un impuesto único sobre el valor del suelo y más autonomía para los municipios",[2,2,1,0,1],[3,-3,-4],"suelo"]],
+[["carb","Las minas deficitarias agravan el hueco."],["renov","Los ingresos de las renovables ayudan algo a las cuentas."]]],
+["Tradiciones","La parroquia pide apoyo para sus fiestas y escuelas, y otros vecinos piden que el pueblo no financie ninguna creencia.",[
+["Financiar las fiestas y tradiciones locales, incluidas las religiosas",[-1,1,-1,3,0],[-1,8,2],"trad"],
+["Estado laico estricto: sin financiación ni símbolos religiosos",[0,0,2,-2,0],[0,-8,3],"laico",[["libre_red",[0,0,0,-2,0],"la discusión ya estaba crispada en redes y estalló."]]],
+["Subvencionar a toda asociación cultural por igual, sin mirar su creencia",[0,1,3,1,0],[1,-4,-5],"igual",[["edu_med",[0,0,0,2,0],"la cultura del debate ayudó a acordar el reparto."]]]]]];
+const EV=[
+[()=>G.y>=3&&(polar()>=62||G.ind[3]<40),["Protestas en la plaza","La tensión entre grupos del pueblo estalla en una manifestación.",[
+["Prohibir las concentraciones y enviar a la policía",[-1,-1,-6,-2,0],[0,5,9],"prohib",[["poli",[0,0,-2,-1,0],"tu mano dura previa convirtió la protesta en un choque."]]],
+["Abrir una mesa de diálogo con todos los grupos",[0,1,2,4,0],[-2,-2,-5],"dialogo",[["edu_med",[0,0,0,2,0],"el hábito de debate ayudó al diálogo."]]],
+["Convocar una consulta vinculante entre todos los vecinos",[-1,0,2,3,0],[-1,-3,-7],"consulta"]]]],
+[()=>G.y>=3&&G.ind[0]<38,["Crisis económica","Cierran comercios y baja el empleo.",[
+["Estímulo público: obras y empleo temporal",[5,3,0,1,-1],[-5,0,5],"estimulo",[["renov",[1,0,0,0,3],"las obras refuerzan las renovables ya iniciadas."]]],
+["Rebajas fiscales y menos trámites para recuperar la inversión",[5,-1,1,-1,-1],[8,1,-3],"rebajas"],
+["Moneda local y cooperativas para sostener el comercio del pueblo",[3,1,1,2,0],[-3,-1,-8],"moneda",[["coop",[1,0,0,1,0],"la cooperativa de la fábrica ya había tejido redes locales."]]]]]]];
+let G;
+const clamp=x=>Math.max(0,Math.min(100,x)),sh=()=>[0,1,2].sort(()=>Math.random()-.5),gPos=()=>G.n?G.sum.map(x=>x/G.n):[0,0,0];
+const polar=()=>{const n=G.cit.length,m=["e","s","p"].map(k=>G.cit.reduce((a,c)=>a+c[k],0)/n);return Math.min(100,G.cit.reduce((a,c)=>a+Math.hypot(c.e-m[0],c.s-m[1],c.p-m[2]),0)/n/16*100)};
+const score=c=>.55*Math.max(0,1-Math.hypot(c.e-G.pos[0],c.s-G.pos[1],c.p-G.pos[2])/c.tol)+.45*G.ind.reduce((a,b)=>a+b,0)/500;
+const mood=c=>{const s=score(c);return s>=.5?0:s>=.38?1:2};
+const stats=()=>{const m=G.cit.map(mood);return{ap:Math.round((m.filter(x=>x===0).length+m.filter(x=>x===1).length/2)/G.cit.length*100),pl:Math.round(polar())}};
+function gNew(){const nm=NM.slice().sort(()=>Math.random()-.5),cl=x=>Math.max(-10,Math.min(10,x)),j=()=>Math.round((Math.random()-.5)*4);
+G={y:0,n:0,sum:[0,0,0],pos:[0,0,0],ind:[50,50,50,50,50],last:null,fl:{},log:[],ev:0,evd:{},q:GC.slice(),cur:null,nx:null,ord:sh(),lp:null,lt:"",
+cit:Array.from({length:30},(_,i)=>{const a=AR[Math.floor(Math.random()*AR.length)],c={i,n:nm[i%nm.length],a,e:cl(a[1]+j()),s:cl(a[2]+j()),p:cl(a[3]+j()),tol:a[4]};c.f=near(c,1,CAND)[0].d;return c})};
+G.cur=G.q.shift();gRender()}
+function gSide(){const{ap,pl}=stats(),face=["M9 10q3 3 6 0","M9.5 11h5","M9 12q3-3 6 0"],ord=G.cit.slice().sort((a,b)=>a.e-b.e||a.s-b.s);
+return`<div class="crowd">${ord.map(c=>{const k=mood(c),col=F[c.f[1]][1];return`<button class="pp" data-i="${c.i}" aria-label="${c.n}, ${c.a[0]}" style="opacity:${[1,.75,.45][k]}"><svg viewBox="0 0 24 32" aria-hidden="true"><circle cx="12" cy="8" r="6.5" fill="${col}"/><path d="M1.5 31c0-9 4.5-13 10.5-13s10.5 4 10.5 13z" fill="${col}"/><circle cx="9.5" cy="7" r="1" fill="#fff"/><circle cx="14.5" cy="7" r="1" fill="#fff"/><path d="${face[k]}" stroke="#fff" fill="none" stroke-width="1.3" stroke-linecap="round"/></svg></button>`}).join("")}</div><p class="note">Pasa el cursor (o toca) sobre una persona para conocer su pensamiento. Están ordenadas de izquierda a derecha según su postura económica; el color es su familia política y la cara, su ánimo.</p><div class="meters"><div><b>${ap} %</b><span>apoyo al gobierno</span></div><div><b>${pl}</b><span>polarización (0–100)</span></div></div>${IND.map((n,i)=>`<div class="ib"><span>${n}</span><div class="bar"><span class="fill" style="width:${G.ind[i]}%"></span></div><b>${Math.round(G.ind[i])}</b></div>`).join("")}`}
+function gRender(){const gm=document.getElementById("gapp");tip.hidden=true;if(!G.cur)return gEnd(gm);const c=G.cur,tot=GC.length+G.ev,head=`<p class="cnt">Año ${G.y+1} de ${tot}</p><div class="prog"><i style="width:${G.y/tot*100}%"></i></div>`;
+const nt=(c[3]||[]).filter(x=>G.fl[x[0]]).map(x=>`<p class="cx cc">${x[1]}</p>`).join("");
+const main=G.last?`${head}<p class="q">${G.last.a}</p><div class="cx">${G.last.b}</div>${G.last.n.map(x=>`<p class="cx cc">Efecto encadenado: ${x}</p>`).join("")}<div class="nav"><span></span><button class="btn pri" id="gn">${G.nx?"Siguiente año":"Ver el balance"}</button></div>`:`${head}<h2 style="font:600 20px Georgia,serif;margin:0 0 4px">${c[0]}</h2><p class="mut" style="margin:0 0 10px">${c[1]}</p>${nt}<div class="opts">${G.ord.map(i=>`<button class="o" data-i="${i}">${c[2][i][0]}</button>`).join("")}</div>`;
+gm.innerHTML=`<div class="gg"><div>${main}</div><div>${gSide()}</div></div>`;
+gm.querySelectorAll(".o").forEach(b=>b.onclick=()=>{const o=c[2][+b.dataset.i],d=o[1].map(x=>x+Math.round((Math.random()-.5)*4)),nt=[];
+(o[4]||[]).forEach(m=>{if(G.fl[m[0]]){m[1].forEach((x,j)=>d[j]+=x);nt.push(m[2]);G.log.push("Año "+(G.y+1)+": "+m[2])}});
+if(o[3])G.fl[o[3]]=1;
+o[2].forEach((x,j)=>G.sum[j]+=x);G.n++;G.pos=G.pos.map((x,j)=>x*.6+o[2][j]*.4);G.lp=o[2];G.lt=o[0].length>44?o[0].slice(0,42)+"…":o[0];
+const pl=polar(),adj=Math.round((50-pl)/15);d[3]+=adj;if(adj)nt.push(`la polarización del pueblo (${Math.round(pl)}/100) ${adj>0?"mejora":"deteriora"} la convivencia (${adj>0?"+":""}${adj}).`);
+d.forEach((x,j)=>G.ind[j]=clamp(G.ind[j]+x));
+G.cit.forEach(ct=>{const hp=mood(ct)===0;["e","s","p"].forEach((k,j)=>{const g=G.pos[j];ct[k]=Math.max(-10,Math.min(10,hp?ct[k]+(g-ct[k])*.12:ct[k]+Math.sign(ct[k]-g)*.8))});ct.f=near(ct,1,CAND)[0].d});
+for(let k=0;k<EV.length;k++)if(!G.evd[k]&&EV[k][0]()){G.evd[k]=1;G.ev++;G.q.unshift(EV[k][1]);break}
+G.nx=G.q.shift()||null;
+G.last={a:"Elegiste: "+o[0],b:d.map((x,j)=>IND[j]+" "+(x>0?"+":"")+x).join(" · "),n:nt};gRender()});
+const gn=document.getElementById("gn");if(gn)gn.onclick=()=>{G.cur=G.nx;G.y++;G.last=null;G.ord=sh();gRender()}}
+function gEnd(gm){const p=gPos(),u={e:p[0],s:p[1],p:p[2]},top=near(u,3,CAND),{ap,pl}=stats(),hi=G.ind.indexOf(Math.max(...G.ind)),lo=G.ind.indexOf(Math.min(...G.ind)),
+mk=(v,t,l,r)=>`<div class="tx"><div class="t">${t}</div><div class="bar"><b style="left:${(v+10)*5}%"></b></div><div class="l"><span>${l}</span><span>${r}</span></div></div>`;
+gm.innerHTML=`<div class="gg"><div><h2 style="font:600 22px Georgia,serif;margin:0">Fin del mandato</h2><p class="mut">Terminaste con <b>${ap} %</b> de apoyo y una polarización de <b>${pl}</b>/100. Tu mejor indicador fue <b>${IND[hi]}</b> y el más débil, <b>${IND[lo]}</b>. Tus decisiones colocan a tu gobierno aquí:</p>${mk(p[0],"Económico","Planificación colectiva","Mercado privado")}${mk(p[1],"Social","Progresista","Tradicional")}${mk(p[2],"Poder","Sin Estado","Estado total")}${interp(u)}<h2 style="font:600 18px Georgia,serif;margin:16px 0 4px">Tu gobierno se parece a</h2>${top.map(o=>`<div class="r" style="border-left:4px solid ${F[o.d[1]][1]};padding-left:10px"><h3>${o.d[0]}</h3><p>${F[o.d[1]][0]}. ${o.d[5]}</p>${FIG[o.d[0]]?`<p class="fig">Figura histórica asociada: <b>${FIG[o.d[0]]}</b></p>`:""}</div>`).join("")}<h2 style="font:600 18px Georgia,serif;margin:16px 0 4px">Cómo se encadenaron tus decisiones</h2>${G.log.length?`<ul class="how">${G.log.map(x=>`<li>${x}</li>`).join("")}</ul>`:'<p class="note">Tus decisiones apenas se cruzaron entre sí. Prueba otro rumbo para descubrir más efectos encadenados.</p>'}<p class="note">Los efectos del juego son una simplificación con algo de azar: en la realidad dependen del contexto y de cómo se aplique cada política.</p>${shareBlock()}<div class="nav"><button class="btn" id="gm">Ver mi gobierno en el mapa</button><button class="btn" id="gr">Jugar otra vez</button></div></div><div>${gSide()}</div></div>`;
+bindShare(shareText(top[0].d,u,` Como presidente de un pueblo de ${G.cit.length} personas terminé con ${ap} % de apoyo y una polarización de ${pl}/100.`));
+document.getElementById("gm").onclick=()=>{setCur(+p[0].toFixed(1),+p[1].toFixed(1),+p[2].toFixed(1),"Mi gobierno");st.value="";go("mapa")};
+document.getElementById("gr").onclick=gNew}
+const tip=document.getElementById("tip"),ga=document.getElementById("gapp");
+function tipShow(i,x,y){const c=G.cit[i],k=mood(c);let r="";
+if(G.lp){const d=Math.hypot(c.e-G.lp[0],c.s-G.lp[1],c.p-G.lp[2]);r=`<p class="tr">Sobre «${G.lt}»: ${d<c.tol*.7?"lo apoyo.":d>c.tol*1.3?"me parece un error.":"no me convence ni me indigna."}</p>`}
+tip.innerHTML=`<b>${c.n}</b> · ${c.a[0]}<br><span class="dotc" style="background:${F[c.f[1]][1]}"></span>Cercano a: ${c.f[0]}<br><i>${["Conforme","Indeciso","Descontento"][k]}</i><p class="th">“${c.a[5][k]}”</p>${r}`;
+tip.hidden=false;tip.style.left=Math.max(8,Math.min(x+14,innerWidth-276))+"px";tip.style.top=Math.max(8,Math.min(y+16,innerHeight-tip.offsetHeight-8))+"px"}
+["pointerover","pointermove","click"].forEach(ev=>ga.addEventListener(ev,e=>{const b=e.target.closest&&e.target.closest(".pp");if(b)tipShow(+b.dataset.i,e.clientX,e.clientY);else tip.hidden=true}));
+ga.addEventListener("pointerleave",()=>{tip.hidden=true});
+ga.addEventListener("focusin",e=>{const b=e.target.closest&&e.target.closest(".pp");if(b){const r=b.getBoundingClientRect();tipShow(+b.dataset.i,r.left,r.bottom)}});
+startTest();gNew();
+addEventListener("resize",rs);rs();draw();
+</script></body></html>
